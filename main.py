@@ -3,11 +3,21 @@ from sms import SendSms
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
+from contextlib import asynccontextmanager
 
-app = FastAPI()
-
-executor = ThreadPoolExecutor(max_workers=10)
+# Create a global variable to store shared resources
 sms_data_locks = defaultdict(asyncio.Lock)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup code
+    print("🚀 SMS API aktif ve çalışıyor!")
+    yield
+    # Shutdown code would go here
+    executor.shutdown()  # Clean up the ThreadPoolExecutor
+
+app = FastAPI(lifespan=lifespan)
+executor = ThreadPoolExecutor(max_workers=10)
 
 async def send_sms_methods(phone_number: str):
     send_sms = SendSms(phone_number, "")
@@ -39,7 +49,3 @@ async def sms(phone: str = Query(..., min_length=10, max_length=10, pattern="^[0
         await process_sms(phone, adet, saniye)
 
     return {"message": f"✅ {adet} SMS başarıyla gönderildi."}
-
-@app.on_event("startup")
-async def startup_event():
-    print("🚀 SMS API aktif ve çalışıyor!")
